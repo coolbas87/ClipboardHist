@@ -7,66 +7,41 @@ using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Serialization;
 using ClipboardHistory.Model;
+using ClipboardHistory.View;
+using System.Windows.Input;
 
 namespace ClipboardHistory.ViewModel
 {
     public class SettingsViewModel : BaseViewModel
     {
-        private Settings settings;
+        private SettingsView window;
+        private Command okCommand;
 
-        public SettingsViewModel()
+        public int ListCount { get; set; }
+
+        public SettingsViewModel(SettingsView view)
         {
-            settings = new Settings();
-            LoadSettings();
+            window = view;
+            ListCount = Settings.Current.ListCount;
         }
 
-        ~SettingsViewModel()
+        public ICommand OkCommand
         {
-            SaveSettings();
-        }
-
-        public void LoadSettings()
-        {
-            if (File.Exists(Globals.SSettingsFName))
+            get
             {
-                var streamReader = new StreamReader(Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location), Globals.SSettingsFName));
-                var locker = new object();
-                var reader = new XmlTextReader(streamReader);
-                try
+                if (okCommand == null)
                 {
-                    XmlSerializer xmlSerializer = new XmlSerializer(typeof(Settings));
-                    if (!xmlSerializer.CanDeserialize(reader))
-                    {
-                        throw new ApplicationException("Ошибка при загрузке настроек");
-                    }
-                    lock (locker)
-                    {
-                        settings = (Settings)xmlSerializer.Deserialize(reader);
-                    }
+                    okCommand = new Command(param => SetSettings());
                 }
-                catch (Exception e)
-                {
-                    throw new ApplicationException(e.Source + '\n' + e.Message);
-                }
-                finally
-                {
-                    reader.Close();
-                }
+
+                return okCommand;
             }
         }
 
-        public void SaveSettings()
+        private void SetSettings()
         {
-            XmlSerializer xmlSerializer = new XmlSerializer(typeof(Settings));
-            Stream writer = new FileStream(Globals.SSettingsFName, FileMode.Create);
-            try
-            {
-                xmlSerializer.Serialize(writer, settings);
-            }
-            finally
-            {
-                writer.Close();
-            }
+            Settings.Current.ListCount = ListCount;
+            window.Close();
         }
     }
 }

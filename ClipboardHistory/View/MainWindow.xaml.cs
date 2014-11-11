@@ -21,30 +21,9 @@ namespace ClipboardHistory.View
     /// </summary>
     public partial class MainWindow : Window
     {
-        private ClipboardWatcher clipboardWatcher;
-        private HwndSource hWndSource;
-
         public MainWindow()
         {
             InitializeComponent();
-            this.DataContext = new MainViewModel();
-        }
-
-        private void ClipboardChanged(object sender, EventArgs e)
-        {
-            var viewModel = (MainViewModel)DataContext;
-            if (viewModel.cmdClipboardChanged.CanExecute(null))
-                viewModel.cmdClipboardChanged.Execute(null);
-        }
-
-        private void Window_Loaded(object sender, RoutedEventArgs e)
-        {
-            WindowInteropHelper wih = new WindowInteropHelper(this);
-            hWndSource = HwndSource.FromHwnd(wih.Handle);
-            clipboardWatcher = new ClipboardWatcher(hWndSource.Handle);
-            clipboardWatcher.OnClipboardChanged += new EventHandler(ClipboardChanged);
-            clipboardWatcher.SetClipboardHandle();
-            hWndSource.AddHook(clipboardWatcher.ReceiveMessage);
         }
     }
 }

@@ -8,31 +8,61 @@ using System.Windows.Media.Imaging;
 using System.Linq;
 using ClipboardHistory.Model;
 using System.Windows.Controls;
+using ClipboardHistory.View;
+using System.Windows.Interop;
+using System.Windows.Media;
 
 namespace ClipboardHistory.ViewModel
 {
     public class MainViewModel : BaseViewModel
     {
-        private Command addCommand;
-        private Command clipboardChangedCommand;
+        #region Commands declaration
         private Command setClipboardItemCommand;
+        private Command clearHistoryCommand;
+        private Command exitCommand;
+        private Command openSettingsCommand;
+        #endregion
+
+        private MainWindow window;
+        private ClipboardWatcher clipboardWatcher;
+        private HwndSource hWndSource;
 
         private ClipboardItems clipboardItems;
         private object lastClipbrdObject;
         private GlobalHotkey showHotKey = null;
- 
-        public MainViewModel()
+
+        public MainViewModel(MainWindow mainWindow)
         {
+            window = mainWindow;
+            window.Closed += window_Closed;
+            window.Closing += window_Closing;
+            window.Loaded += window_Loaded;
+            RestoreFormParams();
             clipboardItems = new ClipboardItems();
             clipboardItems.ReadFromFile();
             if (clipboardItems.Count > 0)
             {
                 lastClipbrdObject = clipboardItems[0].ItemObject;
             }
-            else
+        }
+
+        #region Methods
+        private void RestoreWindow()
+        {
+            window.Show();
+            if (!window.IsFocused)
             {
-                ClipboardChanged();
+                window.Activate();
             }
+        }
+
+        private void RestoreFormParams()
+        {
+            window.WindowState = Settings.Current.WindowState;
+            window.Height = Settings.Current.Height;
+            window.Width = Settings.Current.Width;
+            window.Top = Settings.Current.Top;
+            window.Left = Settings.Current.Left;
         }
 
         public ClipboardItems ClipboardItems
@@ -47,45 +77,16 @@ namespace ClipboardHistory.ViewModel
             }
         }
 
-        public ICommand AddCommand
+        private void StoreFormParams()
         {
-            get
-            {
-                if (addCommand == null)
-                {
-                    addCommand = new Command(param => AddItem());
-                }
-
-                return addCommand;
-            }
+            Settings.Current.Height = window.Height;
+            Settings.Current.Width = window.Width;
+            Settings.Current.Top = window.Top;
+            Settings.Current.Left = window.Left;                  
+            Settings.Current.WindowState = window.WindowState;
         }
 
-        public ICommand cmdClipboardChanged
-        {
-            get
-            {
-                if (clipboardChangedCommand == null)
-                {
-                    clipboardChangedCommand = new Command(param => ClipboardChanged());
-                }
-
-                return clipboardChangedCommand;
-            }
-        }
-
-        public ICommand cmdSetClipboardItem
-        {
-            get
-            {
-                if (setClipboardItemCommand == null)
-                {
-                    setClipboardItemCommand = new Command(param => SetClipboardItem((int)param));
-                }
-                return setClipboardItemCommand;
-            }
-        }
-
-        private void ClipboardChanged()
+        private void ClipboardChanged(object sender, EventArgs e)
         {
             if (Clipboard.ContainsText())
             {
@@ -116,7 +117,7 @@ namespace ClipboardHistory.ViewModel
             {
                 BitmapSource bs = Clipboard.GetImage();
 
-                if ((lastClipbrdObject is WriteableBitmap) && !IsImagesEqual((BitmapSource)lastClipbrdObject, bs))
+                if (((lastClipbrdObject is WriteableBitmap) && !Utils.IsImagesEqual((BitmapSource)lastClipbrdObject, bs)) || !(lastClipbrdObject is ImageSource))
                 {
                     WriteableBitmap imgFromClipboard = new WriteableBitmap(bs);
                     string imgName = string.Format(Globals.SIMAGE, imgFromClipboard.Height, imgFromClipboard.Width);
@@ -128,7 +129,7 @@ namespace ClipboardHistory.ViewModel
             {
                 StringCollection fileList = Clipboard.GetFileDropList();
 
-                if (((lastClipbrdObject is StringCollection) && !IsStringCollectionsEqual((StringCollection)lastClipbrdObject, fileList)) ||
+                if (((lastClipbrdObject is StringCollection) && !Utils.IsStringCollectionsEqual((StringCollection)lastClipbrdObject, fileList)) ||
                     !(lastClipbrdObject is StringCollection))
                 {
                     string name = "";
@@ -144,53 +145,93 @@ namespace ClipboardHistory.ViewModel
             ClearHistory();
             clipboardItems.WriteToFile();
         }
+        #endregion
 
-        private void ClearHistory()
+        #region Events
+        private void DoOnShowHotKey(object sender, HotkeyEventArgs e)
         {
-            //if ((clipboardItems != null) && (clipboardItems.Count > Globals.Settings.ListCount))
-            //{
-            //    for (int i = clipboardItems.Count - 1; i >= Globals.Settings.ListCount; i--)
-            //    {
-            //        clipboardItems.RemoveAt(i);
-            //    }
-            //}
+            RestoreWindow();
         }
 
-        private bool IsStringCollectionsEqual(StringCollection col1, StringCollection col2)
+        void window_Loaded(object sender, RoutedEventArgs e)
         {
-            List<string> list1 = col1.Cast<string>().ToList();
-            List<string> list2 = col2.Cast<string>().ToList();
-            List<string> resList = list1.Except(list2).ToList();
-            return resList.Count == 0;
+            WindowInteropHelper wih = new WindowInteropHelper(window);
+            hWndSource = HwndSource.FromHwnd(wih.Handle);
+            clipboardWatcher = new ClipboardWatcher(hWndSource.Handle);
+            clipboardWatcher.OnClipboardChanged += new EventHandler(ClipboardChanged);
+            clipboardWatcher.SetClipboardHandle();
+            hWndSource.AddHook(clipboardWatcher.ReceiveMessage);
+            showHotKey = new GlobalHotkey(Modifiers.Win, Keys.Oemtilde, window, true);
+            showHotKey.HotkeyPressed += new EventHandler<HotkeyEventArgs>(DoOnShowHotKey);
         }
 
-        private bool IsImagesEqual(BitmapSource img1, BitmapSource img2)
+        private void window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            MemoryStream ms = new MemoryStream();
-            BitmapEncoder encoder = new BmpBitmapEncoder();
-
-            encoder.Frames.Add(BitmapFrame.Create(img1));
-            encoder.Save(ms);
-            String image1 = Convert.ToBase64String(ms.ToArray());
-            ms.Position = 0;
-
-            encoder = new BmpBitmapEncoder();
-            encoder.Frames.Add(BitmapFrame.Create(img2));
-            encoder.Save(ms);
-            String image2 = Convert.ToBase64String(ms.ToArray());
-            ms.Close();
-            return image1.Equals(image2);
+            if (sender is Window)
+            {
+                e.Cancel = true;
+                ((Window)sender).Hide();
+            }
         }
 
-        public void AddItem()
+        private void window_Closed(object sender, EventArgs e)
         {
-            Random rnd = new Random();
-            string itemText = rnd.Next(999).ToString();
-            Clip clip = new Clip(itemText, itemText, "Text");
-            clipboardItems.Add(clip);
+            StoreFormParams();
+            Settings.SaveSettings();
+            showHotKey.Dispose();
+        }
+        #endregion
+
+        #region Impl Commands
+        public ICommand cmdSetClipboardItem
+        {
+            get
+            {
+                if (setClipboardItemCommand == null)
+                {
+                    setClipboardItemCommand = new Command(param => SetClipboardItem((int)param));
+                }
+                return setClipboardItemCommand;
+            }
         }
 
-        public void SetClipboardItem(int index)
+        public ICommand cmdClearHistory
+        {
+            get
+            {
+                if (clearHistoryCommand == null)
+                {
+                    clearHistoryCommand = new Command(param => ClearHistory());
+                }
+                return clearHistoryCommand;
+            }
+        }
+
+        public ICommand cmdExit
+        {
+            get
+            {
+                if (exitCommand == null)
+                {
+                    exitCommand = new Command(param => Application.Current.Shutdown());
+                }
+                return exitCommand;
+            }
+        }
+
+        public ICommand cmdOpenSettings
+        {
+            get
+            {
+                if (openSettingsCommand == null)
+                {
+                    openSettingsCommand = new Command(param => OpenSettings());
+                }
+                return openSettingsCommand;
+            }
+        }
+
+        private void SetClipboardItem(int index)
         {
             if (index > -1)
             {
@@ -227,11 +268,27 @@ namespace ClipboardHistory.ViewModel
                     dataObj.SetFileDropList((StringCollection)clip.ItemObject);
                 }
                 Clipboard.SetDataObject(dataObj);
-                //if (this.WindowState != System.Windows.WindowState.Minimized)
-                //{
-                //    this.Close();
-                //}
+                window.Close();
             }
         }
+
+        private void ClearHistory()
+        {
+            if ((clipboardItems != null) && (clipboardItems.Count > Settings.Current.ListCount))
+            {
+                for (int i = clipboardItems.Count - 1; i >= Settings.Current.ListCount; i--)
+                {
+                    clipboardItems.RemoveAt(i);
+                }
+            }
+        }
+
+        private void OpenSettings()
+        {
+            SettingsView settings = new SettingsView();
+            settings.DataContext = new SettingsViewModel(settings);
+            settings.ShowDialog();
+        }
+        #endregion
     }
 }

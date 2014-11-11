@@ -219,15 +219,6 @@ namespace ClipboardHistory
 
     static class Globals
     {
-        public const string SSettings = "Settings";
-        public const string SListCount = "ListCount";
-        public const string STrayMenuCount = "TrayMenuCount";
-        public const string SHistoryFile = "HistoryFile";
-        public const string SWindowState = "WindowState";
-        public const string SHeight = "Height";
-        public const string SWidth = "Width";
-        public const string STop = "Top";
-        public const string SLeft = "Left";
         public const int DefListCountValue = 50;
         public const int DefTrayMenuCountValue = 20;
         public const string HistoryFile = "History.dat";

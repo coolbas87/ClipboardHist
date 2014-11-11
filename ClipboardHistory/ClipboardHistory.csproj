@@ -69,6 +69,7 @@
     <Compile Include="Model\Clip.cs" />
     <Compile Include="Model\Settings.cs" />
     <Compile Include="User32.cs" />
+    <Compile Include="Utils.cs" />
     <Compile Include="ViewModel\BaseViewModel.cs" />
     <Compile Include="ViewModel\MainViewModel.cs" />
     <Compile Include="ViewModel\SettingsViewModel.cs" />

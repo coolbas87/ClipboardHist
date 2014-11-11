@@ -9,14 +9,66 @@ using System.Xml.Serialization;
 
 namespace ClipboardHistory.Model
 {
-    [XmlRoot(Globals.SSettings)]
     public class Settings
     {
-        [XmlElement(Globals.SListCount)]
-        public int ListCount { get; set; }
+        private static Settings current;
+        private static readonly object syncObj = new object();
 
-        [XmlElement(Globals.STrayMenuCount)]
-        public int TrayMenuCount { get; set; }
+        public Settings()
+        {
+            ListCount = 50;
+            Height = 500;
+            Width = 340;
+            Top = 0;
+            Left = 0;
+            WindowState = WindowState.Normal;
+        }
+
+        public static Settings Current
+        {
+            get
+            {
+                if (current != null)
+                    return current;
+
+                lock (syncObj)
+                {
+                    if (current == null)
+                    {
+                        XmlSerializer serializer = new XmlSerializer(typeof(Settings));
+                        string fileName = AppDomain.CurrentDomain.BaseDirectory + Globals.SSettingsFName;
+                        if (File.Exists(fileName))
+                        {
+                            using (FileStream stream = File.Open(fileName, FileMode.Open))
+                                current = (Settings)serializer.Deserialize(stream);
+                        } 
+                        else
+                        {
+                            current = new Settings();
+                        }
+                    }
+                }
+
+                return current;
+            }
+        }
+
+        public static void SaveSettings()
+        {
+            if (current == null)
+                return;
+
+            lock (syncObj)
+            {
+                XmlSerializer serializer = new XmlSerializer(typeof(Settings));
+                using (FileStream stream = File.Create(AppDomain.CurrentDomain.BaseDirectory + Globals.SSettingsFName))
+                    serializer.Serialize(stream, current);
+            }
+        }
+
+        #region properties
+        public int ListCount { get; set; }
+        //public int TrayMenuCount { get; set; }
 
         public string HistoryFile
         {
@@ -26,26 +78,11 @@ namespace ClipboardHistory.Model
             }
         }
 
-        [XmlElement(Globals.SWindowState)]
         public WindowState WindowState { get; set; }
-
-        [XmlElement(Globals.SHeight)]
         public Double Height { get; set; }
-
-        [XmlElement(Globals.SWidth)]
         public Double Width { get; set; }
-
-        [XmlElement(Globals.STop)]
         public Double Top { get; set; }
-
-        [XmlElement(Globals.SLeft)]
         public Double Left { get; set; }
-
-        public Settings()
-        {
-            ListCount = Globals.DefListCountValue;
-            TrayMenuCount = Globals.DefTrayMenuCountValue;
-            WindowState = System.Windows.WindowState.Normal;
-        }
+        #endregion
     }
 }
