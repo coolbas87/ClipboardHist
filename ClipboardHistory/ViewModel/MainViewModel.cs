@@ -26,6 +26,8 @@ namespace ClipboardHistory.ViewModel
         private MainWindow window;
         private ClipboardWatcher clipboardWatcher;
         private HwndSource hWndSource;
+        private System.Windows.Forms.NotifyIcon notifyIcon;
+        private static System.Windows.Forms.ContextMenu contextMenu;
 
         private ClipboardItems clipboardItems;
         private object lastClipbrdObject;
@@ -37,6 +39,11 @@ namespace ClipboardHistory.ViewModel
             window.Closed += window_Closed;
             window.Closing += window_Closing;
             window.Loaded += window_Loaded;
+            notifyIcon = new System.Windows.Forms.NotifyIcon();
+            notifyIcon.Icon = Properties.Resources.mainicon;
+            notifyIcon.MouseClick += notifyIcon_MouseClick;
+            notifyIcon.ContextMenu = GetContextMenu();
+            notifyIcon.Visible = true;
             RestoreFormParams();
             clipboardItems = new ClipboardItems();
             clipboardItems.ReadFromFile();
@@ -47,6 +54,33 @@ namespace ClipboardHistory.ViewModel
         }
 
         #region Methods
+        private System.Windows.Forms.ContextMenu GetContextMenu()
+        {
+            if (contextMenu == null)
+            {
+                contextMenu = new System.Windows.Forms.ContextMenu();
+                System.Windows.Forms.MenuItem item = null;
+                item = new System.Windows.Forms.MenuItem();
+                item.Text = Globals.SRestore;
+                item.Click += delegate(object sender, EventArgs args)
+                {
+                    RestoreWindow();
+                };
+                contextMenu.MenuItems.Add(item);
+                item = new System.Windows.Forms.MenuItem();
+                item.Text = "-";
+                contextMenu.MenuItems.Add(item);
+                item = new System.Windows.Forms.MenuItem();
+                item.Text = Globals.SExit;
+                item.Click += delegate(object sender, EventArgs args)
+                {
+                    Application.Current.Shutdown();
+                };
+                contextMenu.MenuItems.Add(item);
+            }
+            return contextMenu;
+        }
+
         private void RestoreWindow()
         {
             window.Show();
@@ -153,6 +187,14 @@ namespace ClipboardHistory.ViewModel
             RestoreWindow();
         }
 
+        private void notifyIcon_MouseClick(object sender, System.Windows.Forms.MouseEventArgs e)
+        {
+            if (e.Button == System.Windows.Forms.MouseButtons.Left)
+            {
+                RestoreWindow();
+            }
+        }
+
         void window_Loaded(object sender, RoutedEventArgs e)
         {
             WindowInteropHelper wih = new WindowInteropHelper(window);
@@ -179,6 +221,9 @@ namespace ClipboardHistory.ViewModel
             StoreFormParams();
             Settings.SaveSettings();
             showHotKey.Dispose();
+            showHotKey = null;
+            notifyIcon.Dispose();
+            notifyIcon = null;
         }
         #endregion
 

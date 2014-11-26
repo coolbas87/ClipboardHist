@@ -226,5 +226,7 @@ namespace ClipboardHistory
         public const string SBitmap = "Bitmap";
         public const string SFILE_LIST = "Файлы: {0}";
         public const string SIMAGE = "Изображение. Размер {0}x{1}";
+        public const string SExit = "Выход";
+        public const string SRestore = "Развернуть";
     }
 }
