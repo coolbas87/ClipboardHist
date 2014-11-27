@@ -1,7 +1,8 @@
 ﻿<Window x:Class="ClipboardHistory.View.MainWindow"
+    xmlns:View="clr-namespace:ClipboardHistory"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="MainWindow" Height="500" Width="350">
+    Title="MainWindow" Height="500" Width="350" Icon="/ClipboardHistory;component/Images/mainicon.ico">
     <Window.Resources>
         <Style x:Key="ItemImg" TargetType="Image">
             <Setter Property="Height" Value="16"/>

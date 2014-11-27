@@ -25,11 +25,10 @@ namespace ClipboardHistory
         {
             if (Count > 0)
             {
-                string fName = Globals.HistoryFile;
                 Stream dest = null;
                 try
                 {
-                    dest = File.Open(fName, FileMode.Create, FileAccess.ReadWrite);
+                    dest = File.Open(Globals.HistoryFile, FileMode.Create, FileAccess.ReadWrite);
                     BinaryWriter writer = new BinaryWriter(dest);
                     writer.Write(this.Count);
                     foreach (Clip item in this)
@@ -43,6 +42,13 @@ namespace ClipboardHistory
                     {
                         dest.Close();
                     }
+                }
+            }
+            else
+            {
+                if (File.Exists(Globals.HistoryFile))
+                {
+                    File.Delete(Globals.HistoryFile);
                 }
             }
         }

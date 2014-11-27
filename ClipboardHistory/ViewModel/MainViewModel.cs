@@ -32,6 +32,7 @@ namespace ClipboardHistory.ViewModel
         private ClipboardItems clipboardItems;
         private object lastClipbrdObject;
         private GlobalHotkey showHotKey = null;
+        private bool terminating = false;
 
         public MainViewModel(MainWindow mainWindow)
         {
@@ -62,6 +63,7 @@ namespace ClipboardHistory.ViewModel
                 System.Windows.Forms.MenuItem item = null;
                 item = new System.Windows.Forms.MenuItem();
                 item.Text = Globals.SRestore;
+                item.DefaultItem = true;
                 item.Click += delegate(object sender, EventArgs args)
                 {
                     RestoreWindow();
@@ -74,7 +76,7 @@ namespace ClipboardHistory.ViewModel
                 item.Text = Globals.SExit;
                 item.Click += delegate(object sender, EventArgs args)
                 {
-                    Application.Current.Shutdown();
+                    Exit();
                 };
                 contextMenu.MenuItems.Add(item);
             }
@@ -88,6 +90,7 @@ namespace ClipboardHistory.ViewModel
             {
                 window.Activate();
             }
+            Settings.Current.WasClosed = false;
         }
 
         private void RestoreFormParams()
@@ -108,6 +111,17 @@ namespace ClipboardHistory.ViewModel
             set
             {
                 clipboardItems = value;
+            }
+        }
+
+        private void ClearHistory()
+        {
+            if ((clipboardItems != null) && (clipboardItems.Count > Settings.Current.ListCount))
+            {
+                for (int i = clipboardItems.Count - 1; i >= Settings.Current.ListCount; i--)
+                {
+                    clipboardItems.RemoveAt(i);
+                }
             }
         }
 
@@ -205,19 +219,25 @@ namespace ClipboardHistory.ViewModel
             hWndSource.AddHook(clipboardWatcher.ReceiveMessage);
             showHotKey = new GlobalHotkey(Modifiers.Win, Keys.Oemtilde, window, true);
             showHotKey.HotkeyPressed += new EventHandler<HotkeyEventArgs>(DoOnShowHotKey);
+            if (Settings.Current.WasClosed)
+            {
+                window.Hide();
+            }
         }
 
         private void window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            if (sender is Window)
+            if ((sender is Window) && !(terminating))
             {
-                e.Cancel = true;
                 ((Window)sender).Hide();
+                e.Cancel = true;
+                Settings.Current.WasClosed = true;
             }
         }
 
         private void window_Closed(object sender, EventArgs e)
         {
+            clipboardItems.WriteToFile();
             StoreFormParams();
             Settings.SaveSettings();
             showHotKey.Dispose();
@@ -246,7 +266,7 @@ namespace ClipboardHistory.ViewModel
             {
                 if (clearHistoryCommand == null)
                 {
-                    clearHistoryCommand = new Command(param => ClearHistory());
+                    clearHistoryCommand = new Command(param => ClearAllHistory());
                 }
                 return clearHistoryCommand;
             }
@@ -258,7 +278,7 @@ namespace ClipboardHistory.ViewModel
             {
                 if (exitCommand == null)
                 {
-                    exitCommand = new Command(param => Application.Current.Shutdown());
+                    exitCommand = new Command(param => Exit());
                 }
                 return exitCommand;
             }
@@ -317,15 +337,9 @@ namespace ClipboardHistory.ViewModel
             }
         }
 
-        private void ClearHistory()
+        private void ClearAllHistory()
         {
-            if ((clipboardItems != null) && (clipboardItems.Count > Settings.Current.ListCount))
-            {
-                for (int i = clipboardItems.Count - 1; i >= Settings.Current.ListCount; i--)
-                {
-                    clipboardItems.RemoveAt(i);
-                }
-            }
+            clipboardItems.Clear();
         }
 
         private void OpenSettings()
@@ -333,6 +347,12 @@ namespace ClipboardHistory.ViewModel
             SettingsView settings = new SettingsView();
             settings.DataContext = new SettingsViewModel(settings);
             settings.ShowDialog();
+        }
+
+        private void Exit()
+        {
+            Application.Current.Shutdown();
+            terminating = true;
         }
         #endregion
     }

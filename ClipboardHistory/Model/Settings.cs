@@ -68,7 +68,6 @@ namespace ClipboardHistory.Model
 
         #region properties
         public int ListCount { get; set; }
-        //public int TrayMenuCount { get; set; }
 
         public string HistoryFile
         {
@@ -83,6 +82,7 @@ namespace ClipboardHistory.Model
         public Double Width { get; set; }
         public Double Top { get; set; }
         public Double Left { get; set; }
+        public Boolean WasClosed { get; set; }
         #endregion
     }
 }
